@@ -20,6 +20,8 @@ public class Stone : MonoBehaviour
     private Vector3 targetPosition2;
     private Vector3 startPosition2;
     private bool isDropping = false;
+    private float lastWalkSoundTime = 0f;
+    private float walkSoundCooldown = 7f;
 
     void Start()
     {
@@ -87,6 +89,7 @@ public class Stone : MonoBehaviour
                 wall2.GetComponent<BoxCollider2D>().enabled = true;
                 wall2.GetComponent<SpriteRenderer>().enabled = true;
                 isDropping = true;  // Start dropping the wall
+                Sound.Instance.doorOpen();
             }
         }
     }
@@ -117,6 +120,9 @@ public class Stone : MonoBehaviour
             wall2.GetComponent<BoxCollider2D>().enabled = false;
             // Optional: Make wall fade out or move up
             StartCoroutine(RemoveWall());
+            Sound.Instance.rune(); 
+            
+        
         }
     }
 

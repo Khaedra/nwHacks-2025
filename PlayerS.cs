@@ -7,13 +7,14 @@ using Leap;  // For Leap Motion classes
 
 public class PlayerS : MonoBehaviour
 {
-   private float moveSpeed = 50f;
+   private float moveSpeed = 70f;
    private float jumpForce = 20f;
    private int jumpCount = 0;
    private int maxJumps = 2;
    private bool canJump = true;  // Add debounce for jumping
    private bool inSignZone = false;
    private bool isDebugging = true; 
+
 
 
    private Rigidbody2D rb;
@@ -66,9 +67,11 @@ public void SetCurrentStone(Stone stone)
        Frame frame = leapProvider.CurrentFrame;
        if (frame.Hands.Count > 0)
        {
+           
            Hand hand = frame.Hands[0];
            float moveDirection = hand.PalmPosition.x;
            rb.velocity = new Vector2(moveDirection * moveSpeed, rb.velocity.y);
+          
            if (inSignZone)
             {
               
@@ -83,7 +86,7 @@ public void SetCurrentStone(Stone stone)
            {
                rb.velocity = new Vector2(rb.velocity.x, 0); // Zero out y velocity
                rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-             
+                Sound.Instance.jump();
                jumpCount++;
                canJump = false;  // Prevent multiple jumps from one pinch
            }
