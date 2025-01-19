@@ -13,56 +13,27 @@ public class PlayerS : MonoBehaviour
    private int maxJumps = 2;
    private bool canJump = true;  // Add debounce for jumping
    private bool inSignZone = false;
+   private bool isDebugging = true; 
 
 
    private Rigidbody2D rb;
    private LeapProvider leapProvider;
    private HandPoseDetector poseDetector;
+   private Stone currentStone; 
 
 
    void Start()
    {
        rb = GetComponent<Rigidbody2D>();
        leapProvider = FindObjectOfType<LeapServiceProvider>();
-    //    poseDetector = gameObject.AddComponent<HandPoseDetector>();
-    //    SetupASignPose();
    }
 
-    // void SetupASignPose()
-    // {
-    //     var aSignPose = ScriptableObject.CreateInstance<HandPoseScriptableObject>();
-    //     aSignPose.name = "ASign";
-
-    //     // Define rules for "A" sign
-    //     var rules = new HandPoseDetector.PoseRule[]
-    //     {
-    //         // Thumb should be extended
-    //         new HandPoseDetector.PoseRule{
-    //             finger = Finger.FingerType.Thumb,
-    //             direction = HandPoseDetector.RuleDirection.Extended
-    //         },
-    //         // All other fingers should be closed
-    //         new HandPoseDetector.PoseRule{
-    //             finger = Finger.FingerType.Index,
-    //             direction = HandPoseDetector.RuleDirection.Closed
-    //         },
-    //         new HandPoseDetector.PoseRule{
-    //             finger = Finger.FingerType.Middle,
-    //             direction = HandPoseDetector.RuleDirection.Closed
-    //         },
-    //         new HandPoseDetector.PoseRule{
-    //             finger = Finger.FingerType.Ring,
-    //             direction = HandPoseDetector.RuleDirection.Closed
-    //         },
-    //         new HandPoseDetector.PoseRule{
-    //             finger = Finger.FingerType.Pinky,
-    //             direction = HandPoseDetector.RuleDirection.Closed
-    //         }
-    //     };
-
-    //     poseDetector.poses.Add(aSignPose);
-    // }
-
+public void SetCurrentStone(Stone stone)
+    {
+        currentStone = stone;
+        inSignZone = (stone != null);
+        Debug.Log(inSignZone ? "Entered stone zone!" : "Left stone zone!");
+    }
 
    void OnCollisionEnter2D(Collision2D collision)
    {
@@ -73,7 +44,7 @@ public class PlayerS : MonoBehaviour
    }
    void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("SignZone"))
+        if (other.CompareTag("Stone"))
         {
             inSignZone = true;
             Debug.Log("Entered sign detection zone!");
@@ -81,7 +52,7 @@ public class PlayerS : MonoBehaviour
     }
      void OnTriggerExit2D(Collider2D other)
     {
-        if (other.CompareTag("SignZone"))
+        if (other.CompareTag("Stone"))
         {
             inSignZone = false;
             Debug.Log("Left sign detection zone!");
@@ -90,17 +61,25 @@ public class PlayerS : MonoBehaviour
 
 
    void Update()
-   {
-     
+   {    
+        
        Frame frame = leapProvider.CurrentFrame;
        if (frame.Hands.Count > 0)
        {
            Hand hand = frame.Hands[0];
            float moveDirection = hand.PalmPosition.x;
            rb.velocity = new Vector2(moveDirection * moveSpeed, rb.velocity.y);
+           if (inSignZone)
+            {
+              
+                CheckForASign(hand);
+                CheckForISign(hand);
+                CheckForLSign(hand);
+            }
+     
           
-           // Only jump when pinch starts and we have jumps left
-           if (hand.PinchStrength > 0.8f && jumpCount < maxJumps && canJump)
+          
+           else if (hand.PinchStrength > 0.8f && jumpCount < maxJumps && canJump)
            {
                rb.velocity = new Vector2(rb.velocity.x, 0); // Zero out y velocity
                rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
@@ -108,34 +87,78 @@ public class PlayerS : MonoBehaviour
                jumpCount++;
                canJump = false;  // Prevent multiple jumps from one pinch
            }
-           else if (hand.PinchStrength < 0.3f)
+           else if (hand.PinchStrength < 0.4f)
            {
                canJump = true;  // Allow another jump when pinch is released
            }
-           if (inSignZone)
-            {
-                CheckForASign(hand);
-            }
+           
        }
    }
 
-   void CheckForASign(Hand hand)
-    {
-   
 
-        // Method 2: Direct checking (backup method)
-        if (hand.GrabStrength > 0.8f && 
-            hand.Thumb.IsExtended &&
-            !hand.Index.IsExtended &&
-            !hand.Middle.IsExtended &&
-            !hand.Ring.IsExtended &&
-            !hand.Pinky.IsExtended)
+    void CheckForASign(Hand hand)
+    {
+        // ASL 'A': Fist closed with thumb resting against side
+        bool isThumbOut = hand.Thumb.IsExtended;
+        bool otherFingersClosed = 
+            !hand.Index.IsExtended && 
+            !hand.Middle.IsExtended && 
+            !hand.Ring.IsExtended && 
+            !hand.Pinky.IsExtended;
+        bool isFistClosed = hand.GrabStrength > 0.8f;
+
+        if (isThumbOut && otherFingersClosed && isFistClosed)
         {
+            Debug.Log("A Sign Detected");
             OnASignDetected();
         }
     }
 
-    void OnASignDetected() {
-        Debug.Log("'A' sign detected! Opening door...");
+
+void CheckForISign(Hand hand)
+    {
+        if (hand.Pinky.IsExtended &&
+            !hand.Thumb.IsExtended &&
+            !hand.Index.IsExtended &&
+            !hand.Middle.IsExtended &&
+            !hand.Ring.IsExtended)
+        {
+            OnISignDetected();
+        }
     }
+
+    void CheckForLSign(Hand hand)
+    {
+        if (hand.Thumb.IsExtended &&
+            hand.Index.IsExtended &&
+            !hand.Middle.IsExtended &&
+            !hand.Ring.IsExtended &&
+            !hand.Pinky.IsExtended)
+        {
+            OnLSignDetected();
+        }
+    }
+
+
+
+void OnASignDetected()
+{
+    Debug.Log("'A' sign detected! Opening door...");
+    if (currentStone != null && currentStone.requiredSign == "A")
+        {
+            currentStone.OnCorrectSign();
+        }
+}
+
+void OnISignDetected()
+    {
+        Debug.Log("'I' sign detected! Performing action...");
+        
+    }
+
+    void OnLSignDetected()
+    {
+        Debug.Log("'L' sign detected! Performing action...");
+    }
+
 }
